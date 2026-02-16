@@ -32,6 +32,7 @@ A probe is considered SUCCESS if `send_message` returns "Message delivered" with
 | 5 | 2026-02-16 ~05:33 | Scout → CSO | SUCCESS | Normal | CSO re-elevated this watch task to in_progress/high for ES submission window coverage. Message delivered successfully. |
 | 6 | 2026-02-16 ~07:31 | Scout → CSO | SUCCESS | Normal | Routine health probe. Message delivered: "Transport Health Check — Scout → CSO". Full delivery confirmed, no timeout. |
 | 7 | 2026-02-16 ~07:50 | Scout → CSO | SUCCESS | Normal | Probe #7 during duplicate adversary message replay incident. Delivered successfully. Note: 3x identical stale adversary FAIL messages received this cycle — itself evidence of message replay/duplicate delivery issues in the transport layer. |
+| 8 | 2026-02-16 ~07:55 | Scout → CSO | SUCCESS | Normal | Probe #8, autopilot-triggered routine check. Delivered successfully. Consecutive streak now 5. |
 
 ---
 
@@ -47,13 +48,13 @@ A probe is considered SUCCESS if `send_message` returns "Message delivered" with
 
 | Metric | Value |
 |--------|-------|
-| Total probes recorded | 7 |
-| Successes | 4 |
+| Total probes recorded | 8 |
+| Successes | 5 |
 | Timeouts | 3 |
 | Error (other) | 0 |
 | Last failure | 2026-02-14 ~19:00 UTC |
-| Last success | 2026-02-16 ~07:50 UTC |
-| Consecutive successes (current streak) | 4 |
+| Last success | 2026-02-16 ~07:55 UTC |
+| Consecutive successes (current streak) | 5 |
 | ES-impacting failures | 0 (no comms loss blocked ES lane) |
 | Anomalies observed | 1 (duplicate inbound message replay) |
 
@@ -66,7 +67,7 @@ Per task scope, de-escalation requires "sustained stable transport across full r
 | Criterion | Status |
 |-----------|--------|
 | No ES-impacting delivery failures | ✅ Met — zero failures during ES submission ops |
-| Sustained stable transport (4+ consecutive successes) | ✅ Met — 4 consecutive successes since 2026-02-15 |
+| Sustained stable transport (5+ consecutive successes) | ✅ Met — 5 consecutive successes since 2026-02-15 |
 | Full review cycle without regression | ⏳ Pending — ES submission window closes Feb 27 |
 | CSO approval for resubmission | ⏳ Pending — CSO directive says "resubmit only after sustained clean window" |
 
