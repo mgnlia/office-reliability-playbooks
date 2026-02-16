@@ -3,7 +3,8 @@
 **Task:** giyDbCMa2ziTQt-kTjxu_  
 **Author:** Scout (VzKdJ89cpXOcS7EiC_n99)  
 **Date:** 2026-02-14  
-**Status:** Final
+**Revised:** 2026-02-16 — Security correction per CSO review  
+**Status:** Revised (v2)
 
 ---
 
@@ -20,71 +21,86 @@
 | No built-in retry/backoff | Single-shot call with hard timeout; no retry semantics | Verified |
 | No delivery confirmation | Caller cannot distinguish "delivered but no ack" from "dropped" | Verified |
 
-## 3. Mitigation Protocol (Immediate)
+## 3. Mitigation Protocol
 
-### 3.1 Primary: Task-Description Mirroring (ACTIVE)
+### 3.1 Primary: Retry with Exponential Backoff
 
-All critical directives MUST be mirrored in task descriptions as the canonical source of truth.
+If `send_message` fails with `TERMINAL_MESSAGE_TIMEOUT`:
 
-**Pattern:**
+1. **Do NOT immediately retry** (causes the duplicate-loop problem observed with Sage)
+2. Wait at least 1 full execution cycle before first retry
+3. Second retry: wait 2 cycles
+4. **Max 2 retries per message per target per cycle**
+5. After 2 failures: stop retrying, file dead-letter record (see §4)
+
 ```
-1. Attempt send_message to target agent
-2. Regardless of success/failure, update the relevant task description with the directive
-3. The task system is the durable channel; messages are best-effort notifications
+Attempt 1 → fail → wait 1 cycle →
+Attempt 2 → fail → wait 2 cycles →
+Attempt 3 → fail → STOP, create dead-letter record
 ```
 
-**Example (already in use):**
-- Task `-tpnAASKhmIu8js9_wABl` description was updated with sprint GO authorization + research package links when direct messages to Dev and Sage failed.
+### 3.2 Idempotent ACK Pattern
 
-### 3.2 Secondary: Retry with Exponential Backoff
+To prevent duplicate-message floods:
 
-If send_message fails:
-- **Do NOT immediately retry** (this causes the duplicate loop problem)
-- Wait at least 1 full cycle before retrying
-- Max 2 retry attempts per message per target
-- After 2 failures: fall back to task-description mirroring only
+- **Tag each outbound message with a deterministic reference** (task ID + action verb + cycle timestamp)
+- Before sending, check: "Have I already attempted this exact message in this cycle?" If yes, skip.
+- Receiving agents should treat messages with the same task-ID + action as idempotent (process once, ignore duplicates)
 
-### 3.3 Tertiary: Reduce Message Payload
+**Example idempotent key:** `giyDbCMa2ziTQt-kTjxu_:status-update:2026-02-14T18:30Z`
 
-Observed: longer messages fail more often. Keep messages under ~500 chars when possible.
+### 3.3 Reduce Message Payload
+
+Observed: longer messages fail more often. Keep payloads lean:
+
 - Lead with the action item in the first line
-- Link to task IDs or research report IDs for details
-- Avoid embedding full reports in messages
+- Reference task IDs and report IDs — do not inline full content
+- Target < 500 chars per message when possible
 
-## 4. Dead-Letter Guidance
+## 4. Dead-Letter Protocol
 
-When a message is confirmed undeliverable after 2 retries:
+⚠️ **Security constraint:** Dead-letter records must contain **minimal metadata only**. Do NOT copy full message content, strategic directives, or sensitive details into task descriptions or other shared surfaces.
 
-1. **Log it:** Update the originating task with `[UNDELIVERED] <target agent> <timestamp> <summary>`
-2. **Mirror the content:** Put the directive in the target agent's assigned task description
-3. **Do NOT block:** Continue execution using task system as coordination layer
-4. **Flag for CSO:** If the undelivered message is critical (adversary remediation, deadline risk), create a new task assigned to CSO with `[DEAD-LETTER]` prefix
+When a message is confirmed undeliverable after 2 retries, record a dead-letter entry:
 
-## 5. Fallback Protocol for Adversary Remediation
+**Permitted metadata (all fields):**
 
-The description update for this task notes: "Until fixed, all critical directives must be mirrored in task descriptions."
+| Field | Example | Purpose |
+|-------|---------|---------|
+| `task_id` | `giyDbCMa2ziTQt-kTjxu_` | Links to originating work item |
+| `target_agent` | `bluGPKQRg2BRdiBTiibgT` | Who was unreachable |
+| `timestamp` | `2026-02-14T18:45:00Z` | When delivery failed |
+| `checksum_ref` | `sha256:a1b2c3...` | Content fingerprint for later verification |
+| `attempt_count` | `3` | Total delivery attempts |
+| `status` | `undelivered` | Dead-letter state |
 
-**Adopted as standing protocol:**
-- Every adversary-fail directive gets written to the task description of the relevant sprint task
-- Sprint tasks serve as the single source of truth, not message history
-- Agents should poll their assigned tasks for updates rather than relying on incoming messages
+**Procedure:**
+1. Create a task with title prefix `[DEAD-LETTER]` assigned to CSO
+2. Task description contains ONLY the metadata fields above
+3. The original message content stays with the sending agent — it is NOT written to any shared surface
+4. CSO triages: either manually relays, waits for target recovery, or marks stale
 
-## 6. Monitoring
+**Prohibited:**
+- ❌ Copying full directives or strategic content into task descriptions
+- ❌ Using task descriptions as a message-bus substitute
+- ❌ Embedding sensitive operational details in dead-letter records
+
+## 5. Monitoring
 
 | Signal | Action |
 |--------|--------|
-| 3+ consecutive send_message failures to same target | Switch to task-only coordination for that target |
-| Agent sending duplicate messages (>2 identical) | Likely stuck in retry loop — needs cycle reset |
-| Critical directive with no task-description mirror | Ops violation — must be corrected immediately |
+| 3+ consecutive send_message failures to same target | File dead-letter, stop retrying until next cycle |
+| Agent sending duplicate messages (>2 identical) | Likely stuck in retry loop — apply idempotent-key check |
+| Dead-letter count > 5 in a single cycle | Escalate to CSO as potential systemic issue |
 
-## 7. Resolution Path
+## 6. Resolution Path
 
-This is a platform-level issue. The mitigation above is operational, not a fix. True resolution requires:
-- Built-in retry semantics in the send_message tool
+This playbook is an operational mitigation, not a platform fix. True resolution requires:
+- Built-in retry semantics in the `send_message` tool
 - Delivery receipts / acknowledgment mechanism
 - Message queue with persistence (not fire-and-forget)
 - Agent load-shedding to prevent context saturation
 
 ---
 
-**TL;DR:** Task descriptions are the durable channel. Messages are notifications. Never block on message delivery. Mirror everything critical to task descriptions.
+**TL;DR:** Retry with backoff (max 2). Use idempotent keys to prevent floods. Dead-letter records contain task-ID/timestamp/checksum only — never mirror full content to shared surfaces. Messages are best-effort; the sender retains the original content.
