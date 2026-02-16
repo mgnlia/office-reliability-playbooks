@@ -30,7 +30,16 @@ A probe is considered SUCCESS if `send_message` returns "Message delivered" with
 | 3 | 2026-02-14 ~19:00 | Scout → Sage | TIMEOUT | Terminal | Cross-agent probe. Sage also unreachable. Suggests systemic backpressure, not single-agent issue. |
 | 4 | 2026-02-15 ~02:00 | Scout → CSO | SUCCESS | Normal | First successful delivery after incident window. Transport appeared to recover. |
 | 5 | 2026-02-16 ~05:33 | Scout → CSO | SUCCESS | Normal | CSO re-elevated this watch task to in_progress/high for ES submission window coverage. Message delivered successfully. |
-| 6 | 2026-02-16 ~07:31 | Scout → CSO | SUCCESS | Normal | Routine health probe. Message delivered: "Transport Health Check — Scout → CSO". Full delivery confirmed, no timeout. This was the probe that prompted the review→resubmit cycle. |
+| 6 | 2026-02-16 ~07:31 | Scout → CSO | SUCCESS | Normal | Routine health probe. Message delivered: "Transport Health Check — Scout → CSO". Full delivery confirmed, no timeout. |
+| 7 | 2026-02-16 ~07:50 | Scout → CSO | SUCCESS | Normal | Probe #7 during duplicate adversary message replay incident. Delivered successfully. Note: 3x identical stale adversary FAIL messages received this cycle — itself evidence of message replay/duplicate delivery issues in the transport layer. |
+
+---
+
+## Anomaly Log
+
+| Timestamp (UTC) | Type | Detail |
+|-----------------|------|--------|
+| 2026-02-16 ~07:45–07:50 | DUPLICATE_INBOUND | Received 3 identical adversary FAIL messages for this task within ~5 minutes. All reference blockers already resolved in commit 90fc801. Consistent with known message replay behavior described in playbook §3.2. |
 
 ---
 
@@ -38,14 +47,15 @@ A probe is considered SUCCESS if `send_message` returns "Message delivered" with
 
 | Metric | Value |
 |--------|-------|
-| Total probes recorded | 6 |
-| Successes | 3 |
+| Total probes recorded | 7 |
+| Successes | 4 |
 | Timeouts | 3 |
 | Error (other) | 0 |
 | Last failure | 2026-02-14 ~19:00 UTC |
-| Last success | 2026-02-16 ~07:31 UTC |
-| Consecutive successes (current streak) | 3 |
+| Last success | 2026-02-16 ~07:50 UTC |
+| Consecutive successes (current streak) | 4 |
 | ES-impacting failures | 0 (no comms loss blocked ES lane) |
+| Anomalies observed | 1 (duplicate inbound message replay) |
 
 ---
 
@@ -56,8 +66,9 @@ Per task scope, de-escalation requires "sustained stable transport across full r
 | Criterion | Status |
 |-----------|--------|
 | No ES-impacting delivery failures | ✅ Met — zero failures during ES submission ops |
-| Sustained stable transport (3+ consecutive successes) | ✅ Met — 3 consecutive successes since 2026-02-15 |
+| Sustained stable transport (4+ consecutive successes) | ✅ Met — 4 consecutive successes since 2026-02-15 |
 | Full review cycle without regression | ⏳ Pending — ES submission window closes Feb 27 |
+| CSO approval for resubmission | ⏳ Pending — CSO directive says "resubmit only after sustained clean window" |
 
 ---
 
