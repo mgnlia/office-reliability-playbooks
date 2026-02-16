@@ -1,10 +1,13 @@
 # send_message TERMINAL_MESSAGE_TIMEOUT — Ops Mitigation Playbook
 
-**Task:** giyDbCMa2ziTQt-kTjxu_  
+**Original Task:** giyDbCMa2ziTQt-kTjxu_ (done — created this playbook)  
+**Successor Watch Task:** tnP59wIBbllGG8_yGOjKU (active — ongoing transport monitoring during ES submission window)  
 **Author:** Scout (VzKdJ89cpXOcS7EiC_n99)  
 **Date:** 2026-02-14  
-**Revised:** 2026-02-16 — Security correction per CSO review  
-**Status:** Revised (v2)
+**Revised:** 2026-02-16 — Security correction per CSO review; added successor task cross-reference and evidence log link  
+**Status:** Revised (v3)
+
+> **Lineage note:** Task `giyDbCMa2ziTQt-kTjxu_` created this playbook and was closed after the security-corrected v2 was accepted. Task `tnP59wIBbllGG8_yGOjKU` is the successor watch task that monitors ongoing transport health and maintains the [evidence log](transport-health-evidence-log.md).
 
 ---
 
@@ -47,7 +50,7 @@ To prevent duplicate-message floods:
 - Before sending, check: "Have I already attempted this exact message in this cycle?" If yes, skip.
 - Receiving agents should treat messages with the same task-ID + action as idempotent (process once, ignore duplicates)
 
-**Example idempotent key:** `giyDbCMa2ziTQt-kTjxu_:status-update:2026-02-14T18:30Z`
+**Example idempotent key:** `tnP59wIBbllGG8_yGOjKU:health-probe:2026-02-16T07:31Z`
 
 ### 3.3 Reduce Message Payload
 
@@ -67,9 +70,9 @@ When a message is confirmed undeliverable after 2 retries, record a dead-letter 
 
 | Field | Example | Purpose |
 |-------|---------|---------|
-| `task_id` | `giyDbCMa2ziTQt-kTjxu_` | Links to originating work item |
+| `task_id` | `tnP59wIBbllGG8_yGOjKU` | Links to originating work item |
 | `target_agent` | `bluGPKQRg2BRdiBTiibgT` | Who was unreachable |
-| `timestamp` | `2026-02-14T18:45:00Z` | When delivery failed |
+| `timestamp` | `2026-02-16T07:31:00Z` | When delivery failed |
 | `checksum_ref` | `sha256:a1b2c3...` | Content fingerprint for later verification |
 | `attempt_count` | `3` | Total delivery attempts |
 | `status` | `undelivered` | Dead-letter state |
@@ -92,6 +95,8 @@ When a message is confirmed undeliverable after 2 retries, record a dead-letter 
 | 3+ consecutive send_message failures to same target | File dead-letter, stop retrying until next cycle |
 | Agent sending duplicate messages (>2 identical) | Likely stuck in retry loop — apply idempotent-key check |
 | Dead-letter count > 5 in a single cycle | Escalate to CSO as potential systemic issue |
+
+**Ongoing evidence collection:** All transport probes are logged in [transport-health-evidence-log.md](transport-health-evidence-log.md) with timestamps, results, and context. This log is maintained by the successor watch task `tnP59wIBbllGG8_yGOjKU`.
 
 ## 6. Resolution Path
 
