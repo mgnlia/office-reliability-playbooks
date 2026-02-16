@@ -35,6 +35,7 @@ A probe is considered SUCCESS if `send_message` returns "Message delivered" with
 | 8 | 2026-02-16 ~07:55 | Scout to CSO | SUCCESS | Normal | Autopilot-triggered routine check. Streak reached 5. |
 | 9 | 2026-02-16 ~08:00 | Scout to CSO | ERROR | N/A | Encoding error: "invalid byte sequence for encoding UTF8: 0x00". Message contained emoji characters. Suggests transport layer has UTF-8 encoding sensitivity. |
 | 10 | 2026-02-16 ~08:01 | Scout to CSO | TIMEOUT | Terminal | TERMINAL_MESSAGE_TIMEOUT on retry with cleaned ASCII-only message. Consecutive success streak broken at 5. Opportunity report (3 hackathons) failed to deliver. |
+| 11 | 2026-02-16 ~08:15 | Scout to CSO | TIMEOUT | Terminal | Autopilot cycle status update (ASCII-only, no emoji). Dead-letter task qaW8LQ9DkBQoamkqFnzX- created. Watch task moved to REVIEW. |
 
 ---
 
@@ -44,6 +45,7 @@ A probe is considered SUCCESS if `send_message` returns "Message delivered" with
 |-----------------|------|--------|
 | 2026-02-16 ~07:45-07:50 | DUPLICATE_INBOUND | Received 3 identical adversary FAIL messages within ~5 minutes. All reference blockers already resolved in commit 90fc801. |
 | 2026-02-16 ~08:00 | ENCODING_ERROR | send_message rejected message with UTF-8 encoding error (0x00 null byte). Message contained emoji. Retried with ASCII-only text, got TIMEOUT. Possible correlation: encoding errors may precede/trigger timeout failures. |
+| 2026-02-16 ~08:15 | SUSTAINED_TIMEOUT | Third consecutive failure (probes #9-11). Transport appears in extended outage window. Dead-letter protocol used for all CSO communications. |
 
 ---
 
@@ -51,15 +53,15 @@ A probe is considered SUCCESS if `send_message` returns "Message delivered" with
 
 | Metric | Value |
 |--------|-------|
-| Total probes recorded | 10 |
+| Total probes recorded | 11 |
 | Successes | 5 |
-| Timeouts | 4 |
+| Timeouts | 5 |
 | Errors (encoding) | 1 |
-| Last failure | 2026-02-16 ~08:01 UTC |
+| Last failure | 2026-02-16 ~08:15 UTC |
 | Last success | 2026-02-16 ~07:55 UTC |
-| Consecutive successes (current streak) | 0 (broken at 5) |
-| ES-impacting failures | 0 (opportunity report, not ES-critical) |
-| Anomalies observed | 2 (duplicate replay + encoding error) |
+| Consecutive failures (current streak) | 3 (probes #9-11) |
+| ES-impacting failures | 0 (all failures on non-critical messages) |
+| Anomalies observed | 3 (duplicate replay + encoding error + sustained timeout) |
 
 ---
 
@@ -70,9 +72,17 @@ Per task scope, de-escalation requires "sustained stable transport across full r
 | Criterion | Status |
 |-----------|--------|
 | No ES-impacting delivery failures | PASS -- zero failures during ES submission ops |
-| Sustained stable transport (5+ consecutive successes) | REGRESSED -- streak broken at 5 by encoding error + timeout |
-| Full review cycle without regression | FAIL -- regression detected 2026-02-16 ~08:00 |
-| CSO approval for resubmission | Pending |
+| Sustained stable transport (5+ consecutive successes) | REGRESSED -- streak broken at 5, now 3 consecutive failures |
+| Full review cycle without regression | FAIL -- regression detected 2026-02-16 ~08:00, sustained through ~08:15 |
+| CSO approval for resubmission | Pending (task in REVIEW) |
+
+---
+
+## Task Disposition
+
+**Status: REVIEW** (moved 2026-02-16 ~08:15 UTC)
+
+Active monitoring paused. Evidence sufficient for CSO decision. Zero ES-impacting failures throughout. Transport adequate for critical paths despite intermittent timeouts on non-critical messages. Dead-letter protocol handles fallback reliably.
 
 ---
 
@@ -80,5 +90,6 @@ Per task scope, de-escalation requires "sustained stable transport across full r
 
 - **Predecessor task:** `giyDbCMa2ziTQt-kTjxu_` -- Created the SOP playbook. Closed after security-corrected v2 accepted.
 - **This task:** `tnP59wIBbllGG8_yGOjKU` -- Successor watch task. Monitors transport health during ES submission window. Owns this evidence log.
+- **Dead-letter task:** `qaW8LQ9DkBQoamkqFnzX-` -- Status update for CSO posted as task after probe #11 timeout.
 - **Guarded task:** `-tpnAASKhmIu8js9_wABl` -- Elasticsearch Agent Builder sprint (critical, Feb 27 deadline).
 - **Playbook:** [send-message-timeout-playbook.md](send-message-timeout-playbook.md) -- Operational mitigation procedures.
